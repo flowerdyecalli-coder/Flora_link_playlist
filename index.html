@@ -323,7 +323,7 @@ body.adding #youtube {height:min(24dvh,210px);}
   <header class="topbar">
     <div class="brand">
       <span class="flower" aria-hidden="true">✿</span>
-      <div><h1>플로라 <small>V 0001.0005</small></h1><p>링크 플레이리스트</p></div>
+      <div><h1>플로라 <small>V 0001.0006</small></h1><p>링크 플레이리스트</p></div>
     </div>
     <details class="settings">
       <summary>설정</summary>
@@ -391,6 +391,7 @@ body.adding #youtube {height:min(24dvh,210px);}
         <label><input type="checkbox" id="selectAll"> 전체 선택</label>
         <button id="queuePlay" class="primary" disabled>선택 재생</button>
         <button id="queueStop" hidden>목록 중지</button>
+        <button id="reorderTracks" aria-pressed="false">순서 변경</button>
       </div>
       <div class="list-scroll">
         <details id="shadowPanel" hidden>
@@ -457,6 +458,7 @@ let recording = false;
 let trimEdit = null;
 let seekEditing = false;
 let showVideo = false;
+let reordering = false;
 
 function toast(message) {
   clearTimeout(toastTimer);
@@ -472,6 +474,8 @@ function status(message = '') {
 
 function render() {
   const g = group();
+  $('reorderTracks').textContent = reordering ? '순서 변경 완료' : '순서 변경';
+  $('reorderTracks').setAttribute('aria-pressed', String(reordering));
   $('groups').replaceChildren(...data.groups.map(item => {
     const tab = button(item.name, () => switchGroup(item.id));
     tab.setAttribute('role', 'tab');
@@ -508,13 +512,40 @@ function render() {
     title.title = item.note ? item.title + ' · ' + item.note : item.title;
     info.append(title, el('p', [trimTime(item.start) + ' ~ ' + (item.end === null ? '끝' : trimTime(item.end)), item.rate + '배속'].join(' · '), 'meta'));
     const tools = el('div', undefined, 'tracktools');
-    tools.append(button('수정', () => openTrack(item)), button('삭제', () => removeTrack(item)));
+    if (reordering) {
+      const index = g.tracks.indexOf(item);
+      const up = button('↑', () => moveTrack(item.id, -1));
+      const down = button('↓', () => moveTrack(item.id, 1));
+      up.setAttribute('aria-label', item.title + ' 위로 이동');
+      down.setAttribute('aria-label', item.title + ' 아래로 이동');
+      up.disabled = index === 0;
+      down.disabled = index === g.tracks.length - 1;
+      tools.append(up, down);
+    } else {
+      tools.append(button('수정', () => openTrack(item)), button('삭제', () => removeTrack(item)));
+    }
     row.append(checkLabel, playButton, info, tools);
     $('tracks').append(row);
     rows.set(item.id, { row, check, order });
   }
   syncSelection();
   syncPlayer();
+}
+
+$('reorderTracks').onclick = () => { reordering = !reordering; render(); };
+function moveTrack(id, direction) {
+  const tracks = group().tracks;
+  const index = tracks.findIndex(item => item.id === id);
+  const target = index + direction;
+  if (index < 0 || target < 0 || target >= tracks.length) return;
+  [tracks[index], tracks[target]] = [tracks[target], tracks[index]];
+  save();
+  render();
+  const controls = rows.get(id)?.row.querySelectorAll('.tracktools button');
+  if (controls) {
+    const preferred = controls[direction < 0 ? 0 : 1];
+    (preferred.disabled ? controls[direction < 0 ? 1 : 0] : preferred).focus({preventScroll:true});
+  }
 }
 
 function removeTrack(item) {
