@@ -276,13 +276,54 @@ form input { min-width: 0; width: 100%; border: 1px solid var(--line); border-ra
   .topbar { min-height: 55px; }
   main { gap: 5px; padding-top: 5px; overflow-y: auto; grid-template-rows: auto minmax(130px, 1fr); }
 }
+
+main { grid-template-rows: auto minmax(150px,1fr); overflow:hidden; }
+.playercard { max-height: min(54dvh,440px); overflow-y:auto; }
+#youtube {height: min(24dvh,210px);}
+.track.selected {border:2px solid var(--green);background:#dcefe3;box-shadow:inset 4px 0 var(--green);}
+.track.selected h3::before {content:'● ';color:var(--green);}
+.now {align-items:center;}
+#playState {grid-column:1;justify-self:start;margin:2px 0;}
+#videoToggle {grid-column:2;grid-row:2;font-size:.8125rem;min-height:30px;padding:3px 7px;}
+#trackDialog {position:static;width:100%;margin:0;padding:8px 10px;max-height:26dvh;overflow:auto;font-size:.875rem;}
+#trackDialog form > label {margin:5px 0;gap:2px;}
+#trackDialog input {padding:5px;}
+#trackDialog button {min-height:32px;}
+#trackDialog h2 {font-size:1rem;}
+body.adding main {grid-template-rows:auto auto minmax(130px,1fr);gap:5px;}
+body.adding #youtube {height:12dvh;}
+#toast {pointer-events:none;top:74px;bottom:auto;}
+@media (max-height:600px) { .topbar {min-height:48px;} main {padding-top:5px;gap:4px;} .playercard{max-height:45dvh;} body.adding .playercard{max-height:32dvh;} }
+
+.transport button {white-space:nowrap;padding-inline:8px;}
+.speed {white-space:nowrap;flex:none;}
+.transport-buttons {min-width:0;}
+@media(max-width:390px){.transport {gap:3px;padding-inline:7px;}.transport button{font-size:.8125rem;padding-inline:6px;min-height:38px;}#toggle{min-width:60px;}.speed{font-size:.8125rem;}.speed select{font-size:.8125rem;}}
+#trackDialog form {display:grid;grid-template-columns:1fr auto;gap:3px 7px;}
+#trackDialog .sectionhead {grid-column:1/-1;}
+#trackDialog form > label {grid-column:1/-1;margin:0;display:flex;align-items:center;gap:7px;}
+#trackDialog form > label input {flex:1;width:0;}
+#trackDialog form > label:nth-of-type(2){font-size:0;}
+#trackDialog form > label:nth-of-type(2) input {font-size:.875rem;}
+#trackDialog .wide {grid-column:2;}
+#trackDialog .error {margin:0;}
+#trackDialog {max-height:23dvh;}
+
+/* 재생 목록은 페이지 전체와 함께 자연스럽게 스크롤합니다. */
+body {height:auto;min-height:100dvh;display:block;overflow:visible;}
+main,body.adding main {display:flex;flex-direction:column;overflow:visible;gap:10px;}
+.playercard,body.adding .playercard {flex:none;max-height:none;overflow:visible;}
+.listsection {display:block;min-height:150px;}
+.list-scroll {overflow:visible;min-height:0;}
+#trackDialog {max-height:none;overflow:visible;}
+body.adding #youtube {height:min(24dvh,210px);}
 </style>
 </head>
 <body>
   <header class="topbar">
     <div class="brand">
       <span class="flower" aria-hidden="true">✿</span>
-      <div><h1>플로라 <small>V 0001.0004</small></h1><p>링크 플레이리스트</p></div>
+      <div><h1>플로라 <small>V 0001.0005</small></h1><p>링크 플레이리스트</p></div>
     </div>
     <details class="settings">
       <summary>설정</summary>
@@ -306,7 +347,7 @@ form input { min-width: 0; width: 100%; border: 1px solid var(--line); border-ra
       </div>
       <div class="now">
         <h2 id="nowTitle">재생할 곡을 선택해 주세요</h2>
-        <span id="counter" class="badge" hidden></span>
+        <span id="counter" class="badge" hidden></span><span id="playState" class="badge">정지</span><button id="videoToggle" hidden>영상 재생</button>
         <p id="status" role="status" hidden></p>
       </div>
       <div class="seekrow">
@@ -332,6 +373,15 @@ form input { min-width: 0; width: 100%; border: 1px solid var(--line); border-ra
         </select></label>
       </div>
     </section>
+  <dialog id="trackDialog">
+    <form id="trackForm">
+      <div class="sectionhead"><h2 id="dialogTitle">링크 추가</h2><button type="button" data-close="trackDialog">닫기</button></div>
+      <label>제목<input name="title" required maxlength="150"></label>
+      <label>유튜브 또는 오디오·영상 주소<input name="url" type="url" required placeholder="https://…"></label>
+      <p class="error" id="formError" role="alert"></p>
+      <button class="primary wide">저장하기</button>
+    </form>
+  </dialog>
     <section class="listsection" aria-label="재생 목록">
       <div class="sectionhead">
         <h2>재생 목록</h2>
@@ -358,15 +408,6 @@ form input { min-width: 0; width: 100%; border: 1px solid var(--line); border-ra
       </div>
     </section>
   </main>
-  <dialog id="trackDialog">
-    <form id="trackForm">
-      <div class="sectionhead"><h2 id="dialogTitle">링크 추가</h2><button type="button" data-close="trackDialog">닫기</button></div>
-      <label>제목<input name="title" required maxlength="150"></label>
-      <label>유튜브 또는 오디오·영상 주소<input name="url" type="url" required placeholder="https://…"></label>
-      <p class="error" id="formError" role="alert"></p>
-      <button class="primary wide">저장하기</button>
-    </form>
-  </dialog>
   <dialog id="groupDialog">
     <form id="groupForm">
       <div class="sectionhead"><h2>플레이리스트 설정</h2><button type="button" data-close="groupDialog">닫기</button></div>
@@ -384,7 +425,7 @@ let data;try{data=validate(JSON.parse(localStorage.getItem(KEY)),true) }catch{da
 const playlistNames={'영어 공부':'영어','영어공부':'영어','쉐도잉 영어':'쉐도잉','쉐도잉영어':'쉐도잉','댄스':'댄스곡'};
 for(const g of data.groups)g.name=playlistNames[g.name]||g.name;
 let db;const req=indexedDB.open('flora-recordings',1);req.onupgradeneeded=()=>req.result.createObjectStore('recordings',{keyPath:'id'});req.onsuccess=()=>{db=req.result;renderRecordings()};req.onerror=()=>toast('녹음 저장소를 열지 못했어요. 다운로드로 보관해 주세요.');
-function validate(v,preserve=false){if(!v||v.version!==1||!Array.isArray(v.groups)||!v.groups.length||v.groups.length>100)throw Error('목록 형식이 올바르지 않습니다.');return {version:1,groups:v.groups.map(g=>{if(!g||typeof g.name!=='string'||!g.name.trim()||!['video','shadow','music'].includes(g.mode)||!Array.isArray(g.tracks)||g.tracks.length>5000)throw Error('그룹 형식이 올바르지 않습니다.');return {id:preserve&&typeof g.id==='string'?g.id:uid(),name:g.name.slice(0,60),mode:g.mode,tracks:g.tracks.map(t=>{if(!t||typeof t.title!=='string'||!t.title.trim()||!safeUrl(t.url)||!Number.isFinite(t.start)||t.start<0||(t.end!==null&&(!Number.isFinite(t.end)||t.end<=t.start))||![.5,.75,1,1.25,1.5,2].includes(t.rate)||!Number.isInteger(t.repeat)||t.repeat<0||t.repeat>9999)throw Error('링크 설정이 올바르지 않습니다.');return {id:preserve&&typeof t.id==='string'?t.id:uid(),title:t.title.slice(0,150),url:t.url,start:t.start,end:t.end,rate:t.rate,repeat:t.repeat,note:String(t.note||'').slice(0,5000)}})}})}}
+function validate(v,preserve=false){if(!v||v.version!==1||!Array.isArray(v.groups)||!v.groups.length||v.groups.length>100)throw Error('목록 형식이 올바르지 않습니다.');return {version:1,groups:v.groups.map(g=>{if(!g||typeof g.name!=='string'||!g.name.trim()||!['video','shadow','music'].includes(g.mode)||!Array.isArray(g.tracks)||g.tracks.length>5000)throw Error('그룹 형식이 올바르지 않습니다.');return {id:preserve&&typeof g.id==='string'?g.id:uid(),name:g.name.slice(0,60),mode:g.mode,tracks:g.tracks.map(t=>{if(!t||typeof t.title!=='string'||!t.title.trim()||!safeUrl(t.url)||!Number.isFinite(t.start)||t.start<0||(t.end!==null&&(!Number.isFinite(t.end)||t.end<=t.start))||!Number.isFinite(t.rate)||t.rate<.5||t.rate>2||!Number.isInteger(t.repeat)||t.repeat<0||t.repeat>9999)throw Error('링크 설정이 올바르지 않습니다.');return {id:preserve&&typeof t.id==='string'?t.id:uid(),title:t.title.slice(0,150),url:t.url,start:t.start,end:t.end,rate:t.rate,repeat:t.repeat,note:String(t.note||'').slice(0,5000)}})}})}}
 function safeUrl(s){try{return ['https:','http:'].includes(new URL(s).protocol)}catch{return false}}
 function group(){return data.groups.find(g=>g.id===groupId)}function track(){return group()?.tracks.find(t=>t.id===currentId)}
 function save(){try{localStorage.setItem(KEY,JSON.stringify(data))}catch{toast('저장 공간이 부족합니다. 목록을 내보내 보관해 주세요.')}}
@@ -415,6 +456,7 @@ let recTimer = null;
 let recording = false;
 let trimEdit = null;
 let seekEditing = false;
+let showVideo = false;
 
 function toast(message) {
   clearTimeout(toastTimer);
@@ -456,7 +498,10 @@ function render() {
       syncSelection();
     };
     checkLabel.append(check, order);
-    const playButton = button('▶', () => startTrack(item.id), 'play');
+    const playButton = button('▶', () => {
+      if (selected.has(item.id)) startQueue([...selected], item.id);
+      else startTrack(item.id);
+    }, 'play');
     playButton.setAttribute('aria-label', item.title + ' 재생');
     const info = el('div');
     const title = el('h3', item.title);
@@ -530,6 +575,7 @@ function syncPlayer() {
   $('next').disabled = !stepTarget(1);
   $('toggle').disabled = !item;
   $('liveRate').disabled = !item;
+  syncRates();
   if (item) {
     $('liveRate').value = String(item.rate);
     $('nowTitle').textContent = item.title;
@@ -550,13 +596,18 @@ function syncPlayer() {
 }
 
 function updateStage() {
-  $('youtube').hidden = run?.kind !== 'yt';
+  const dance = group().name === '댄스곡';
+  $('videoToggle').hidden = run?.kind !== 'yt' || !dance;
+  $('videoToggle').textContent = showVideo ? '영상 숨기기' : '영상 재생';
+  $('youtube').hidden = run?.kind !== 'yt' || (dance && !showVideo);
+  syncRates();
   media.hidden = run?.kind !== 'media' || !media.videoWidth || group().mode === 'music';
   $('stage').hidden = $('youtube').hidden && media.hidden;
 }
 
 function setPlaying(playing) {
   $('toggle').textContent = playing ? '일시정지' : '재생';
+  $('playState').textContent = playing ? '● 재생 중' : '일시정지 · 정지';
 }
 
 function pause() {
@@ -650,6 +701,7 @@ function startTrack(id, fromQueue = false) {
   pause();
   clearTimeout(ytConnectTimer);
   currentId = id;
+  showVideo = false;
   trimEdit = null;
   seekEditing = false;
   const videoId = ytId(item.url);
@@ -662,7 +714,8 @@ function startTrack(id, fromQueue = false) {
     requested: false,
     complete: false,
     failed: false,
-    seekTarget: null
+    seekTarget: null,
+    boundaryHandled: false
   };
   run = active;
   status('재생 준비 중');
@@ -673,6 +726,7 @@ function startTrack(id, fromQueue = false) {
     media.load();
   }
   syncPlayer();
+  rows.get(id)?.row.scrollIntoView({block: 'nearest'});
   if (videoId && !/^[\w-]{11}$/.test(videoId)) {
     failTrack(active, '유튜브 영상 주소를 확인해 주세요.');
     return;
@@ -766,7 +820,22 @@ window.onYouTubeIframeAPIReady = () => {
   });
 };
 
+
+function syncRates() {
+  const item = track();
+  const supported = run?.kind === 'yt' && youtubeMatches(run) ? player.getAvailablePlaybackRates() : [];
+  const rates = run?.kind === 'yt' ? (supported.length ? supported : [1]) : Array.from({length:31},(_,i)=>Number((.5+i*.05).toFixed(2)));
+  const signature = rates.join(',');
+  if ($('liveRate').dataset.rates !== signature) {
+    $('liveRate').replaceChildren(...rates.map(rate=>{const option=el('option',rate.toFixed(2)+'배');option.value=String(rate);return option;}));
+    $('liveRate').dataset.rates=signature;
+  }
+  $('liveRate').value=String(item && rates.includes(item.rate) ? item.rate : 1);
+}
+$('videoToggle').onclick=()=>{showVideo=!showVideo;updateStage();};
+
 function applyRate() {
+  syncRates();
   const item = track();
   if (!item) return;
   if (run?.kind === 'media') {
@@ -833,7 +902,8 @@ function failTrack(active, message) {
 }
 
 async function onBoundary(active) {
-  if (run !== active || !active.started || !active.wantsPlay || active.seekTarget !== null || trimEdit) return;
+  if (run !== active || active.boundaryHandled || !active.started || !active.wantsPlay || trimEdit) return;
+  active.boundaryHandled = true;
   active.started = false;
   pause();
   if (!shadow) {
@@ -860,6 +930,7 @@ async function onBoundary(active) {
 
 function restartRun() {
   run.started = false;
+  run.boundaryHandled = false;
   run.complete = false;
   seek(track().start);
   resume();
@@ -899,8 +970,7 @@ function checkTrimEnd() {
   const item = track();
   const pos = position();
   if (active.seekTarget !== null) {
-    const allowance = Math.max(.06, Math.min(.4, ((item.end ?? Infinity) - active.seekTarget) / 2));
-    if (Math.abs(pos - active.seekTarget) > allowance && pos >= (item.end ?? Infinity)) return;
+    if (pos < active.seekTarget - .5) return;
     active.seekTarget = null;
   }
   if (active.kind === 'media' && media.seeking) return;
@@ -954,12 +1024,13 @@ $('liveRate').onchange = () => {
   render();
 };
 
-function startQueue(ids) {
+function startQueue(ids, firstId = ids[0]) {
   const available = ids.filter(id => rows.has(id));
   if (!available.length) return;
   stopShadow();
-  queue = { ids: available, index: 0, complete: false, errors: 0 };
-  startTrack(available[0], true);
+  const index = Math.max(0, available.indexOf(firstId));
+  queue = { ids: available, index, complete: false, errors: 0 };
+  startTrack(available[index], true);
 }
 
 $('selectAll').onchange = () => {
@@ -977,8 +1048,8 @@ $('queueStop').onclick = () => {
   status('선택 재생을 중지했습니다.');
   syncPlayer();
 };
-function openTrack(t){editing=t?.id||null;const f=$('trackForm');f.reset();$('dialogTitle').textContent=t?'링크 수정':'링크 추가';if(t){f.elements.title.value=t.title;f.elements.url.value=t.url}$('formError').textContent='';$('trackDialog').showModal()}
-$('addTrack').onclick=()=>openTrack();$('trackForm').onsubmit=e=>{e.preventDefault();try{const f=e.target,url=f.elements.url.value.trim();if(!safeUrl(url))throw Error('인터넷 주소를 확인해 주세요.');const previous=editing?group().tracks.find(x=>x.id===editing):null;const t={id:editing||uid(),start:0,end:null,rate:1,repeat:0,note:'',...previous,title:f.elements.title.value.trim(),url};if(!t.title)throw Error('제목을 입력해 주세요.');if(editing){if(currentId===editing)stopCurrent();group().tracks=group().tracks.map(x=>x.id===editing?t:x)}else group().tracks.push(t);save();render();$('trackDialog').close();toast('링크를 저장했습니다. 재생 후 막대에서 구간을 지정해 주세요.')}catch(e){$('formError').textContent=e.message}};
+function openTrack(t){editing=t?.id||null;const f=$('trackForm');f.reset();$('dialogTitle').textContent=t?'링크 수정':'링크 추가';if(t){f.elements.title.value=t.title;f.elements.url.value=t.url}$('formError').textContent='';$('trackDialog').show();document.body.classList.add('adding')}
+$('addTrack').onclick=()=>openTrack();$('trackForm').onsubmit=e=>{e.preventDefault();try{const f=e.target,url=f.elements.url.value.trim();if(!safeUrl(url))throw Error('인터넷 주소를 확인해 주세요.');const previous=editing?group().tracks.find(x=>x.id===editing):null;const t={id:editing||uid(),start:0,end:null,rate:1,repeat:0,note:'',...previous,title:f.elements.title.value.trim(),url};if(!t.title)throw Error('제목을 입력해 주세요.');if(editing){if(currentId===editing)stopCurrent();group().tracks=group().tracks.map(x=>x.id===editing?t:x)}else group().tracks.push(t);save();render();$('trackDialog').close();document.body.classList.remove('adding');rows.get(currentId)?.row.scrollIntoView({block:'nearest'});toast('링크를 저장했습니다. 재생 후 막대에서 구간을 지정해 주세요.')}catch(e){$('formError').textContent=e.message}};
 function openGroup(g){editingGroup=g?.id||null;const f=$('groupForm');f.reset();f.elements.name.value=g?.name||'';f.elements.mode.value=g?.mode||'music';$('deleteGroup').hidden=!g;$('groupDialog').showModal()}
 function download(blob,name){const u=URL.createObjectURL(blob),a=document.createElement('a');a.href=u;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(u),30000)}
 $('export').onclick=()=>download(new Blob([JSON.stringify(data,null,2)],{type:'application/json'}),'플로라_플레이리스트.json');$('import').onclick=()=>$('file').click();$('file').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{if(f.size>10000000)throw Error('파일이 너무 큽니다.');const incoming=validate(JSON.parse(await f.text()));data.groups.push(...incoming.groups);save();switchGroup(incoming.groups[0].id);toast('기존 목록에 플레이리스트를 추가했습니다.')}catch(e){toast('가져오기 실패: '+e.message)}e.target.value=''};
@@ -1019,6 +1090,7 @@ $('deleteGroup').onclick = () => {
   save();
   $('groupDialog').close();
 };
+$('trackDialog').addEventListener('close',()=>document.body.classList.remove('adding'));
 document.querySelectorAll('[data-close]').forEach(b => b.onclick = () => $(b.dataset.close).close());
 settings.addEventListener('click', event => {
   if (event.target.closest('#export, #import')) settings.open = false;
